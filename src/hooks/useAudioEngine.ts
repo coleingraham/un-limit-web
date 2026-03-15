@@ -38,7 +38,6 @@ async function getOrInitEngine(): Promise<MicrosynthEngine> {
 
 export function useAudioEngine() {
   const [initialized, setInitialized] = useState(sharedEngine?.isReady() ?? false);
-  const [initError, setInitError] = useState<string | null>(null);
   const initCalledRef = useRef(false);
 
   const initEngine = useCallback(async () => {
@@ -47,11 +46,8 @@ export function useAudioEngine() {
     try {
       await getOrInitEngine();
       setInitialized(true);
-      setInitError(null);
     } catch (err) {
       initCalledRef.current = false;
-      const msg = err instanceof Error ? err.message : String(err);
-      setInitError(msg);
       console.error('[useAudioEngine] Init failed:', err);
     }
   }, []);
@@ -95,21 +91,9 @@ export function useAudioEngine() {
     if (sharedEngine?.isReady()) setInitialized(true);
   }, []);
 
-  const getDebugInfo = useCallback(() => {
-    const ctx = sharedEngine?.getContext();
-    return {
-      engineReady: sharedEngine?.isReady() ?? false,
-      ctxState: ctx?.state ?? 'no context',
-      sampleRate: ctx?.sampleRate ?? 0,
-      initError,
-    };
-  }, [initError]);
-
   return {
     initialized,
-    initError,
     initEngine,
-    getDebugInfo,
     reloadSynthDefs,
     spawnVoice,
     setParam,

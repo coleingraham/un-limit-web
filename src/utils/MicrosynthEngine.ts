@@ -61,29 +61,17 @@ export class MicrosynthEngine {
     this.ctx = MicrosynthEngine.sharedCtx;
   }
 
-  private debugLog(msg: string) {
-    console.log(`[MicrosynthEngine] ${msg}`);
-    const setter = (globalThis as unknown as Record<string, unknown>).__setDebugMsg;
-    if (typeof setter === 'function') (setter as (m: string) => void)(msg);
-  }
-
   async init(): Promise<void> {
     if (this.ready) return;
-
-    this.debugLog(`ctx state: ${this.ctx.state}, sr=${this.ctx.sampleRate}`);
 
     // Don't gate on "running" — proceed with setup even if suspended.
     // The worklet and WASM will be ready; audio starts flowing the
     // moment the context is eventually resumed by a gesture listener.
 
-    this.debugLog('fetching wasm...');
     const wasmResponse = await fetch('/wasm/microsynth_raw.wasm');
     const wasmBytes = await wasmResponse.arrayBuffer();
-    this.debugLog(`wasm fetched (${wasmBytes.byteLength} bytes)`);
 
-    this.debugLog('adding worklet module...');
     await this.ctx.audioWorklet.addModule('/processor.js');
-    this.debugLog('worklet module added');
 
     this.workletNode = new AudioWorkletNode(this.ctx, 'microsynth-processor', {
       numberOfOutputs: 1,
@@ -95,7 +83,7 @@ export class MicrosynthEngine {
 
     this.workletNode.port.onmessage = (e) => this.handleMessage(e.data);
 
-    this.debugLog('waiting for wasm ready...');
+    // Wait for WASM ready
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('WASM init timeout')), 5000);
       const handler = (e: MessageEvent) => {
@@ -107,12 +95,10 @@ export class MicrosynthEngine {
       };
       this.workletNode!.port.addEventListener('message', handler);
     });
-    this.debugLog('wasm ready');
 
     // Initialize with bus for multi-voice
     this.send({ type: 'initBus' });
 
-    this.debugLog('waiting for bus...');
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Bus init timeout')), 5000);
       const handler = (e: MessageEvent) => {
@@ -126,7 +112,7 @@ export class MicrosynthEngine {
     });
 
     this.ready = true;
-    this.debugLog(`initialized (ctx: ${this.ctx.state})`);
+    console.log('[MicrosynthEngine] Initialized');
   }
 
   private send(msg: Record<string, unknown>) {
