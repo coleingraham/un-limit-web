@@ -13,6 +13,10 @@ export class MicrosynthEngine {
 
   constructor() {
     this.ctx = new AudioContext();
+    // Kick off resume immediately — must happen synchronously in the
+    // user-gesture call stack.  We don't await here; init() will wait
+    // for the context to actually be running before proceeding.
+    this.ctx.resume().catch(() => {});
   }
 
   private debugLog(msg: string) {
@@ -24,8 +28,24 @@ export class MicrosynthEngine {
   async init(): Promise<void> {
     if (this.ready) return;
 
-    this.debugLog('resuming ctx...');
-    await this.resume();
+    this.debugLog('waiting for ctx to run...');
+    // Wait for the context to leave "suspended" (resume was kicked off in constructor)
+    if (this.ctx.state !== 'running') {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`AudioContext stuck in "${this.ctx.state}" state`)), 3000);
+        this.ctx.addEventListener('statechange', () => {
+          if (this.ctx.state === 'running') {
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        // Check again in case it already changed
+        if (this.ctx.state === 'running') {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+    }
     this.debugLog(`ctx state: ${this.ctx.state}`);
 
     this.debugLog('fetching wasm...');
@@ -145,7 +165,8 @@ export class MicrosynthEngine {
 
   async resume(): Promise<void> {
     if (this.ctx.state === 'suspended') {
-      await this.ctx.resume();
+      // Fire-and-forget — don't await, as it can hang on mobile
+      this.ctx.resume().catch(() => {});
     }
   }
 
