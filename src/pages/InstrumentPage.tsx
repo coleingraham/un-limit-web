@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useInstrumentConfig } from '../hooks/useInstrumentConfig.tsx';
 import { useAudioEngine } from '../hooks/useAudioEngine.ts';
 import { useMultiTouch } from '../hooks/useMultiTouch.ts';
@@ -77,8 +77,27 @@ export default function InstrumentPage() {
     engine.setMasterTimbre(v);
   }, [engine]);
 
+  const [debugInfo, setDebugInfo] = useState<ReturnType<typeof engine.getDebugInfo> | null>(null);
+
+  // Update debug info periodically after first touch
+  useEffect(() => {
+    if (!engine.initialized && !engine.initError) return;
+    const update = () => setDebugInfo(engine.getDebugInfo());
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [engine.initialized, engine.initError, engine.getDebugInfo]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {debugInfo && (
+        <Box sx={{ p: 0.5, bgcolor: debugInfo.initError ? '#600' : '#063', fontSize: '11px' }}>
+          <Typography variant="caption" sx={{ color: '#fff', fontFamily: 'monospace' }}>
+            ready={String(debugInfo.engineReady)} ctx={debugInfo.ctxState} sr={debugInfo.sampleRate}
+            {debugInfo.initError && ` ERR: ${debugInfo.initError}`}
+          </Typography>
+        </Box>
+      )}
       <ControlPanel
         volume={volume}
         timbre={timbre}
