@@ -45,9 +45,13 @@ export function yToAmplitudeDb(yNorm: number): number {
   // Distance from center: 0 at center, 1 at edge of buffer zone
   const distFromCenter = Math.abs(yNorm - 0.5) / (0.5 - bufferZone);
 
+  // Apply power curve so volume changes gradually near center
+  // and falls off more steeply only near the edges
+  const shaped = Math.pow(distFromCenter, 3);
+
   // dB scale: center = 0 dB, edge = -60 dB
   const minDb = -60;
-  const db = minDb * distFromCenter;
+  const db = minDb * shaped;
   return Math.pow(10, db / 20);
 }
 
