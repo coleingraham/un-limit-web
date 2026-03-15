@@ -59,6 +59,7 @@ export class MicrosynthEngine {
       this.workletNode!.port.addEventListener('message', handler);
     });
 
+    await this.resume();
     this.ready = true;
     console.log('[MicrosynthEngine] Initialized');
   }
