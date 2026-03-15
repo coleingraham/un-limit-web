@@ -15,17 +15,27 @@ export class MicrosynthEngine {
     this.ctx = new AudioContext();
   }
 
+  private debugLog(msg: string) {
+    console.log(`[MicrosynthEngine] ${msg}`);
+    const setter = (globalThis as unknown as Record<string, unknown>).__setDebugMsg;
+    if (typeof setter === 'function') (setter as (m: string) => void)(msg);
+  }
+
   async init(): Promise<void> {
     if (this.ready) return;
 
-    // Resume must happen early — before other awaits — so mobile browsers
-    // still treat it as part of the originating user gesture.
+    this.debugLog('resuming ctx...');
     await this.resume();
+    this.debugLog(`ctx state: ${this.ctx.state}`);
 
+    this.debugLog('fetching wasm...');
     const wasmResponse = await fetch('/wasm/microsynth_raw.wasm');
     const wasmBytes = await wasmResponse.arrayBuffer();
+    this.debugLog(`wasm fetched (${wasmBytes.byteLength} bytes)`);
 
+    this.debugLog('adding worklet module...');
     await this.ctx.audioWorklet.addModule('/processor.js');
+    this.debugLog('worklet module added');
 
     this.workletNode = new AudioWorkletNode(this.ctx, 'microsynth-processor', {
       numberOfOutputs: 1,
@@ -37,6 +47,7 @@ export class MicrosynthEngine {
 
     this.workletNode.port.onmessage = (e) => this.handleMessage(e.data);
 
+    this.debugLog('waiting for wasm ready...');
     // Wait for WASM ready
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('WASM init timeout')), 5000);
@@ -49,13 +60,17 @@ export class MicrosynthEngine {
       };
       this.workletNode!.port.addEventListener('message', handler);
     });
+    this.debugLog('wasm ready');
 
     // Initialize with bus for multi-voice
     this.send({ type: 'initBus' });
 
-    await new Promise<void>((resolve) => {
+    this.debugLog('waiting for bus...');
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Bus init timeout')), 5000);
       const handler = (e: MessageEvent) => {
         if (e.data.type === 'busReady') {
+          clearTimeout(timeout);
           this.workletNode!.port.removeEventListener('message', handler);
           resolve();
         }
@@ -64,7 +79,7 @@ export class MicrosynthEngine {
     });
 
     this.ready = true;
-    console.log('[MicrosynthEngine] Initialized');
+    this.debugLog('initialized');
   }
 
   private send(msg: Record<string, unknown>) {

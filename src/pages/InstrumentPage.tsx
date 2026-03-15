@@ -77,27 +77,30 @@ export default function InstrumentPage() {
     engine.setMasterTimbre(v);
   }, [engine]);
 
-  const [debugInfo, setDebugInfo] = useState<ReturnType<typeof engine.getDebugInfo> | null>(null);
+  const [debugMsg, setDebugMsg] = useState('waiting for touch');
 
-  // Update debug info periodically after first touch
+  // Expose setter globally so MicrosynthEngine can report progress
   useEffect(() => {
-    if (!engine.initialized && !engine.initError) return;
-    const update = () => setDebugInfo(engine.getDebugInfo());
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
+    (window as unknown as Record<string, unknown>).__setDebugMsg = (msg: string) => setDebugMsg(msg);
+    return () => { delete (window as unknown as Record<string, unknown>).__setDebugMsg; };
+  }, []);
+
+  // Update debug after init completes or fails
+  useEffect(() => {
+    if (engine.initError) setDebugMsg(`ERR: ${engine.initError}`);
+    else if (engine.initialized) {
+      const info = engine.getDebugInfo();
+      setDebugMsg(`ready ctx=${info.ctxState} sr=${info.sampleRate}`);
+    }
   }, [engine.initialized, engine.initError, engine.getDebugInfo]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      {debugInfo && (
-        <Box sx={{ p: 0.5, bgcolor: debugInfo.initError ? '#600' : '#063', fontSize: '11px' }}>
-          <Typography variant="caption" sx={{ color: '#fff', fontFamily: 'monospace' }}>
-            ready={String(debugInfo.engineReady)} ctx={debugInfo.ctxState} sr={debugInfo.sampleRate}
-            {debugInfo.initError && ` ERR: ${debugInfo.initError}`}
-          </Typography>
-        </Box>
-      )}
+      <Box sx={{ p: 0.5, bgcolor: '#333', fontSize: '11px', zIndex: 9999 }}>
+        <Typography variant="caption" sx={{ color: '#fff', fontFamily: 'monospace' }}>
+          {debugMsg}
+        </Typography>
+      </Box>
       <ControlPanel
         volume={volume}
         timbre={timbre}
