@@ -5,6 +5,7 @@
 export class MicrosynthEngine {
   private ctx: AudioContext;
   private workletNode: AudioWorkletNode | null = null;
+  private analyser: AnalyserNode | null = null;
   private ready = false;
   private registeredDefs = new Set<string>();
 
@@ -79,7 +80,10 @@ export class MicrosynthEngine {
       processorOptions: { wasmBytes },
     });
 
-    this.workletNode.connect(this.ctx.destination);
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.workletNode.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
 
     this.workletNode.port.onmessage = (e) => this.handleMessage(e.data);
 
@@ -184,6 +188,10 @@ export class MicrosynthEngine {
 
   isReady(): boolean {
     return this.ready;
+  }
+
+  getAnalyser(): AnalyserNode | null {
+    return this.analyser;
   }
 
   getContext(): AudioContext {

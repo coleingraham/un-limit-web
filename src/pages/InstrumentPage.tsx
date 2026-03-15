@@ -34,6 +34,9 @@ export default function InstrumentPage() {
     [config, canvasHeight],
   );
 
+  // getTouches ref so voiceManager can access active touches without circular deps
+  const getTouchesRef = useRef<() => Map<number, TouchState>>(() => new Map());
+
   const voiceManager = useVoiceManager({
     spawnVoice: engine.spawnVoice,
     setParam: engine.setParam,
@@ -41,6 +44,7 @@ export default function InstrumentPage() {
     freeVoice: engine.freeVoice,
     getMasterGain: engine.getMasterGain,
     getMasterTimbre: engine.getMasterTimbre,
+    getTouches: () => getTouchesRef.current(),
   }, config.monoMode);
 
   const activeTouchesRef = useRef<Set<number>>(new Set());
@@ -74,6 +78,9 @@ export default function InstrumentPage() {
     onTouchEnd,
   });
 
+  // Wire up getTouches ref now that multiTouch exists
+  getTouchesRef.current = multiTouch.getTouches;
+
   const handleVolumeChange = useCallback((v: number) => {
     setVolume(v);
     engine.setMasterGain(v);
@@ -100,6 +107,7 @@ export default function InstrumentPage() {
             tuningGuides={config.tuningGuides}
             stringRatio={config.stringRatio}
             touches={multiTouch.getTouches()}
+            getAnalyser={engine.getAnalyser}
             onPointerDown={multiTouch.handlePointerDown}
             onPointerMove={multiTouch.handlePointerMove}
             onPointerUp={multiTouch.handlePointerUp}
@@ -107,6 +115,7 @@ export default function InstrumentPage() {
           />
         )}
       </Box>
+      <Box sx={{ height: 40, flexShrink: 0 }} />
     </Box>
   );
 }

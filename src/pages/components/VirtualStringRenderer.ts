@@ -1,6 +1,13 @@
 import type { StringConfig, TouchState } from '../../utils/types.ts';
 import { get12TETPositions } from '../../utils/tuning.ts';
 
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function drawStrings(
   ctx: CanvasRenderingContext2D,
   strings: StringConfig[],
@@ -9,10 +16,11 @@ export function drawStrings(
 ) {
   for (const str of strings) {
     // String background: gradient from black at edges to color at center
+    // Semi-transparent so waveform shows through
     const gradient = ctx.createLinearGradient(0, str.yTop, 0, str.yBottom);
-    gradient.addColorStop(0, '#000000');
-    gradient.addColorStop(0.5, str.color);
-    gradient.addColorStop(1, '#000000');
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+    gradient.addColorStop(0.5, hexToRgba(str.color, 0.3));
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, str.yTop, canvasWidth, str.yBottom - str.yTop);
 

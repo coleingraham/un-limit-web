@@ -87,6 +87,10 @@ export function useAudioEngine() {
   const getMasterGain = useCallback(() => masterState.gain, []);
   const getMasterTimbre = useCallback(() => masterState.timbre, []);
 
+  const getAnalyser = useCallback((): AnalyserNode | null => {
+    return sharedEngine?.getAnalyser() ?? null;
+  }, []);
+
   useEffect(() => {
     if (sharedEngine?.isReady()) setInitialized(true);
   }, []);
@@ -103,5 +107,6 @@ export function useAudioEngine() {
     setMasterTimbre,
     getMasterGain,
     getMasterTimbre,
+    getAnalyser,
   };
 }
