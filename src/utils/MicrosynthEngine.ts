@@ -11,35 +11,34 @@ export class MicrosynthEngine {
   private voicePromises = new Map<number, (voiceId: number) => void>();
   private nextRequestId = 1;
 
-  // Shared AudioContext, created & resumed from a native DOM gesture handler
+  // Shared AudioContext — created once, resumed via native gesture listeners
   private static sharedCtx: AudioContext | null = null;
   private static unlockInstalled = false;
 
   /**
-   * Must be called once (e.g. on mount). Registers native touchstart/click
-   * listeners on `document` so the very first tap creates and resumes an
-   * AudioContext directly inside the browser's user-activation window.
+   * Must be called once (e.g. on module load). Registers native DOM listeners
+   * that try to resume the AudioContext on every user gesture until it works.
+   * Does NOT close or replace the context — init() proceeds even while
+   * suspended and audio starts flowing once the context eventually runs.
    */
   static installUnlock(): void {
     if (MicrosynthEngine.unlockInstalled) return;
     MicrosynthEngine.unlockInstalled = true;
 
     const unlock = () => {
-      // If an existing context is stuck suspended, discard it and
-      // create a fresh one inside this gesture — WebKit on iOS often
-      // refuses to resume a pre-existing suspended context.
-      if (MicrosynthEngine.sharedCtx && MicrosynthEngine.sharedCtx.state === 'suspended') {
-        MicrosynthEngine.sharedCtx.close().catch(() => {});
-        MicrosynthEngine.sharedCtx = null;
-      }
-      if (!MicrosynthEngine.sharedCtx) {
-        MicrosynthEngine.sharedCtx = new AudioContext();
-      }
       const ctx = MicrosynthEngine.sharedCtx;
-      if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
+      if (!ctx || ctx.state === 'running') {
+        // Once running, stop listening
+        if (ctx?.state === 'running') {
+          document.removeEventListener('touchstart', unlock, true);
+          document.removeEventListener('touchend', unlock, true);
+          document.removeEventListener('click', unlock, true);
+        }
+        return;
       }
-      // Play a silent buffer — belt-and-suspenders for WebKit
+      // Try resume
+      ctx.resume().catch(() => {});
+      // Silent buffer trick — helps on some WebKit versions
       try {
         const b = ctx.createBuffer(1, 1, ctx.sampleRate);
         const s = ctx.createBufferSource();
@@ -47,27 +46,19 @@ export class MicrosynthEngine {
         s.connect(ctx.destination);
         s.start(0);
       } catch (_) { /* ignore */ }
-
-      if (ctx.state === 'running') {
-        document.removeEventListener('touchstart', unlock, true);
-        document.removeEventListener('touchend', unlock, true);
-        document.removeEventListener('click', unlock, true);
-      }
     };
 
-    // Use capture phase so we run before React synthetic events.
-    // Listen on multiple event types — iOS WebKit may only honour
-    // certain ones depending on version.
+    // Capture phase — fires before React synthetic events
     document.addEventListener('touchstart', unlock, true);
     document.addEventListener('touchend', unlock, true);
     document.addEventListener('click', unlock, true);
   }
 
   constructor() {
-    // Use the shared context if the unlock handler already created one,
-    // otherwise create a new one (desktop path where resume just works).
-    this.ctx = MicrosynthEngine.sharedCtx ?? new AudioContext();
-    MicrosynthEngine.sharedCtx = this.ctx;
+    if (!MicrosynthEngine.sharedCtx) {
+      MicrosynthEngine.sharedCtx = new AudioContext();
+    }
+    this.ctx = MicrosynthEngine.sharedCtx;
   }
 
   private debugLog(msg: string) {
@@ -79,34 +70,11 @@ export class MicrosynthEngine {
   async init(): Promise<void> {
     if (this.ready) return;
 
-    // The unlock handler may have replaced the context (closing a stuck
-    // suspended one and creating a fresh running one). Pick up the latest.
-    if (MicrosynthEngine.sharedCtx && MicrosynthEngine.sharedCtx !== this.ctx) {
-      this.ctx = MicrosynthEngine.sharedCtx;
-    }
-    this.debugLog(`ctx state: ${this.ctx.state}`);
+    this.debugLog(`ctx state: ${this.ctx.state}, sr=${this.ctx.sampleRate}`);
 
-    // On desktop the context is usually already running. On mobile the
-    // native unlock handler should have resumed it. If it's still
-    // suspended, give it a moment — the unlock listener may fire on
-    // touchend/click which comes slightly after touchstart.
-    if (this.ctx.state !== 'running') {
-      this.debugLog('waiting for ctx to run...');
-      // Try resume one more time from here
-      this.ctx.resume().catch(() => {});
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error(`AudioContext stuck in "${this.ctx.state}" state`)), 3000);
-        const check = () => {
-          if (this.ctx.state === 'running') {
-            clearTimeout(timeout);
-            resolve();
-          }
-        };
-        this.ctx.addEventListener('statechange', check);
-        check();
-      });
-    }
-    this.debugLog(`ctx running, sr=${this.ctx.sampleRate}`);
+    // Don't gate on "running" — proceed with setup even if suspended.
+    // The worklet and WASM will be ready; audio starts flowing the
+    // moment the context is eventually resumed by a gesture listener.
 
     this.debugLog('fetching wasm...');
     const wasmResponse = await fetch('/wasm/microsynth_raw.wasm');
@@ -128,7 +96,6 @@ export class MicrosynthEngine {
     this.workletNode.port.onmessage = (e) => this.handleMessage(e.data);
 
     this.debugLog('waiting for wasm ready...');
-    // Wait for WASM ready
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('WASM init timeout')), 5000);
       const handler = (e: MessageEvent) => {
@@ -159,7 +126,7 @@ export class MicrosynthEngine {
     });
 
     this.ready = true;
-    this.debugLog('initialized');
+    this.debugLog(`initialized (ctx: ${this.ctx.state})`);
   }
 
   private send(msg: Record<string, unknown>) {
@@ -225,7 +192,6 @@ export class MicrosynthEngine {
 
   async resume(): Promise<void> {
     if (this.ctx.state === 'suspended') {
-      // Fire-and-forget — don't await, as it can hang on mobile
       this.ctx.resume().catch(() => {});
     }
   }
