@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, TextField, Button, IconButton,
   List, ListItem, ListItemText, ListItemSecondaryAction,
+  FormControlLabel, Switch,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,6 +17,7 @@ export default function SettingsPage() {
     setFundamentalFreq,
     setNumStrings,
     setFreqRangeOctaves,
+    setMonoMode,
     addTuningGuide,
     removeTuningGuide,
     resetToDefaults,
@@ -86,6 +88,16 @@ export default function SettingsPage() {
           size="small"
           value={config.freqRangeOctaves}
           onChange={(e) => setFreqRangeOctaves(Math.max(1, Math.min(8, parseFloat(e.target.value) || 4)))}
+        />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={config.monoMode ?? false}
+              onChange={(e) => setMonoMode(e.target.checked)}
+            />
+          }
+          label="Mono (one voice per string)"
         />
 
         <Typography variant="subtitle1" sx={{ mt: 2 }}>Tuning Guides</Typography>

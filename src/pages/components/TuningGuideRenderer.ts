@@ -1,5 +1,5 @@
 import type { TouchState, TuningGuide, StringConfig } from '../../utils/types.ts';
-import { checkRatioMatch } from '../../utils/tuningGuides.ts';
+import { getRatioDetuning } from '../../utils/tuningGuides.ts';
 
 export function drawTuningGuides(
   ctx: CanvasRenderingContext2D,
@@ -24,15 +24,19 @@ export function drawTuningGuides(
     for (const guide of guides) {
       const guideLog = Math.log2(guide.ratio[0] / guide.ratio[1]);
 
-      // Check if any other touch matches this guide ratio
-      let glowing = false;
+      // Find closest detuning from any other touch to this guide ratio.
+      // brightness ramps up as detuning approaches 0 (perfect tune).
+      const glowRange = 50; // cents — guides start brightening within this range
+      let closestCents = Infinity;
       for (const other of touchArray) {
         if (other.pointerId === touch.pointerId) continue;
-        if (checkRatioMatch(touch.frequency, other.frequency, guide.ratio)) {
-          glowing = true;
-          break;
-        }
+        const cents = getRatioDetuning(touch.frequency, other.frequency, guide.ratio);
+        if (cents < closestCents) closestCents = cents;
       }
+      // 0 = no glow, 1 = fully in tune
+      const glow = closestCents < glowRange
+        ? 1 - closestCents / glowRange
+        : 0;
 
       // Compute intersection x on every string (including the touch string)
       // and draw a continuous line across the full canvas height
@@ -76,12 +80,14 @@ export function drawTuningGuides(
         points.push({ x: extX, y: extY });
       }
 
-      // Draw the guide line
-      if (glowing) {
-        ctx.shadowColor = 'rgba(100, 200, 255, 0.8)';
-        ctx.shadowBlur = 12;
-        ctx.strokeStyle = 'rgba(100, 200, 255, 0.6)';
-        ctx.lineWidth = 2.5;
+      // Draw the guide line — brightness scales with glow (0..1)
+      if (glow > 0) {
+        const alpha = 0.12 + 0.48 * glow;
+        const blur = 12 * glow;
+        ctx.shadowColor = `rgba(100, 200, 255, ${(0.8 * glow).toFixed(2)})`;
+        ctx.shadowBlur = blur;
+        ctx.strokeStyle = `rgba(100, 200, 255, ${alpha.toFixed(2)})`;
+        ctx.lineWidth = 1 + 1.5 * glow;
       } else {
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
@@ -102,11 +108,12 @@ export function drawTuningGuides(
       for (let i = markerStart; i < markerEnd; i++) {
         const p = points[i];
         if (p.x < 0 || p.x > canvasWidth) continue;
-        ctx.fillStyle = glowing
-          ? 'rgba(100, 200, 255, 0.5)'
+        const markerAlpha = glow > 0 ? 0.15 + 0.35 * glow : 0.15;
+        ctx.fillStyle = glow > 0
+          ? `rgba(100, 200, 255, ${markerAlpha.toFixed(2)})`
           : 'rgba(255, 255, 255, 0.15)';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, glowing ? 5 : 3, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 3 + 2 * glow, 0, Math.PI * 2);
         ctx.fill();
       }
 

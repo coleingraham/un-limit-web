@@ -21,6 +21,7 @@ interface InstrumentConfigContextType {
   setFundamentalFreq: (freq: number) => void;
   setNumStrings: (n: number) => void;
   setFreqRangeOctaves: (octaves: number) => void;
+  setMonoMode: (mono: boolean) => void;
   addTuningGuide: (guide: TuningGuide) => void;
   removeTuningGuide: (index: number) => void;
   resetToDefaults: () => void;
@@ -43,6 +44,7 @@ export function InstrumentConfigProvider({ children }: { children: ReactNode }) 
   const setFundamentalFreq = useCallback((freq: number) => update({ fundamentalFreq: freq }), [update]);
   const setNumStrings = useCallback((n: number) => update({ numStrings: n }), [update]);
   const setFreqRangeOctaves = useCallback((octaves: number) => update({ freqRangeOctaves: octaves }), [update]);
+  const setMonoMode = useCallback((mono: boolean) => update({ monoMode: mono }), [update]);
 
   const addTuningGuide = useCallback((guide: TuningGuide) => {
     setConfig((prev) => {
@@ -72,6 +74,7 @@ export function InstrumentConfigProvider({ children }: { children: ReactNode }) 
       setFundamentalFreq,
       setNumStrings,
       setFreqRangeOctaves,
+      setMonoMode,
       addTuningGuide,
       removeTuningGuide,
       resetToDefaults,

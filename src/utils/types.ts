@@ -27,6 +27,7 @@ export interface InstrumentConfig {
   numStrings: number;
   freqRangeOctaves: number;
   tuningGuides: TuningGuide[];
+  monoMode: boolean;
 }
 
 export const DEFAULT_CONFIG: InstrumentConfig = {
@@ -40,4 +41,5 @@ export const DEFAULT_CONFIG: InstrumentConfig = {
     { ratio: [5, 4], label: '5:4' },
     { ratio: [7, 4], label: '7:4' },
   ],
+  monoMode: false,
 };

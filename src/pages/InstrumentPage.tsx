@@ -41,7 +41,7 @@ export default function InstrumentPage() {
     freeVoice: engine.freeVoice,
     getMasterGain: engine.getMasterGain,
     getMasterTimbre: engine.getMasterTimbre,
-  });
+  }, config.monoMode);
 
   const activeTouchesRef = useRef<Set<number>>(new Set());
 

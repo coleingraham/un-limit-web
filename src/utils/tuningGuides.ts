@@ -72,16 +72,26 @@ export function checkRatioMatch(
   ratio: [number, number],
   toleranceCents: number = 10,
 ): boolean {
+  return getRatioDetuning(freq1, freq2, ratio) < toleranceCents;
+}
+
+/**
+ * Get the detuning in cents between two frequencies relative to a target ratio.
+ * Returns the smallest difference considering octave equivalences.
+ */
+export function getRatioDetuning(
+  freq1: number,
+  freq2: number,
+  ratio: [number, number],
+): number {
   const higher = Math.max(freq1, freq2);
   const lower = Math.min(freq1, freq2);
   const actualRatio = higher / lower;
   const targetRatio = ratio[0] / ratio[1];
 
-  // Also check inversions and octave equivalences
   const actualCents = 1200 * Math.log2(actualRatio);
   const targetCents = 1200 * Math.log2(targetRatio);
 
-  // Check direct match
   const diff = Math.abs(actualCents % 1200 - targetCents % 1200);
-  return diff < toleranceCents || Math.abs(diff - 1200) < toleranceCents;
+  return Math.min(diff, Math.abs(diff - 1200));
 }
