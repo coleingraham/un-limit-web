@@ -18,6 +18,10 @@ export class MicrosynthEngine {
   async init(): Promise<void> {
     if (this.ready) return;
 
+    // Resume must happen early — before other awaits — so mobile browsers
+    // still treat it as part of the originating user gesture.
+    await this.resume();
+
     const wasmResponse = await fetch('/wasm/microsynth_raw.wasm');
     const wasmBytes = await wasmResponse.arrayBuffer();
 
@@ -59,7 +63,6 @@ export class MicrosynthEngine {
       this.workletNode!.port.addEventListener('message', handler);
     });
 
-    await this.resume();
     this.ready = true;
     console.log('[MicrosynthEngine] Initialized');
   }
