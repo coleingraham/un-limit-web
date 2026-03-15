@@ -25,6 +25,13 @@ export class MicrosynthEngine {
     MicrosynthEngine.unlockInstalled = true;
 
     const unlock = () => {
+      // If an existing context is stuck suspended, discard it and
+      // create a fresh one inside this gesture — WebKit on iOS often
+      // refuses to resume a pre-existing suspended context.
+      if (MicrosynthEngine.sharedCtx && MicrosynthEngine.sharedCtx.state === 'suspended') {
+        MicrosynthEngine.sharedCtx.close().catch(() => {});
+        MicrosynthEngine.sharedCtx = null;
+      }
       if (!MicrosynthEngine.sharedCtx) {
         MicrosynthEngine.sharedCtx = new AudioContext();
       }
@@ -32,7 +39,7 @@ export class MicrosynthEngine {
       if (ctx.state === 'suspended') {
         ctx.resume().catch(() => {});
       }
-      // Also play a silent buffer — belt-and-suspenders for WebKit
+      // Play a silent buffer — belt-and-suspenders for WebKit
       try {
         const b = ctx.createBuffer(1, 1, ctx.sampleRate);
         const s = ctx.createBufferSource();
@@ -48,7 +55,9 @@ export class MicrosynthEngine {
       }
     };
 
-    // Use capture phase so we run before React synthetic events
+    // Use capture phase so we run before React synthetic events.
+    // Listen on multiple event types — iOS WebKit may only honour
+    // certain ones depending on version.
     document.addEventListener('touchstart', unlock, true);
     document.addEventListener('touchend', unlock, true);
     document.addEventListener('click', unlock, true);
@@ -70,6 +79,11 @@ export class MicrosynthEngine {
   async init(): Promise<void> {
     if (this.ready) return;
 
+    // The unlock handler may have replaced the context (closing a stuck
+    // suspended one and creating a fresh running one). Pick up the latest.
+    if (MicrosynthEngine.sharedCtx && MicrosynthEngine.sharedCtx !== this.ctx) {
+      this.ctx = MicrosynthEngine.sharedCtx;
+    }
     this.debugLog(`ctx state: ${this.ctx.state}`);
 
     // On desktop the context is usually already running. On mobile the
@@ -78,6 +92,8 @@ export class MicrosynthEngine {
     // touchend/click which comes slightly after touchstart.
     if (this.ctx.state !== 'running') {
       this.debugLog('waiting for ctx to run...');
+      // Try resume one more time from here
+      this.ctx.resume().catch(() => {});
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error(`AudioContext stuck in "${this.ctx.state}" state`)), 3000);
         const check = () => {

@@ -43,8 +43,14 @@ export default function InstrumentPage() {
     getMasterTimbre: engine.getMasterTimbre,
   });
 
+  const activeTouchesRef = useRef<Set<number>>(new Set());
+
   const onTouchStart = useCallback(async (touch: TouchState) => {
+    activeTouchesRef.current.add(touch.pointerId);
     await engine.initEngine();
+    // If the finger was already lifted while we were initialising, don't
+    // start a voice that can never be stopped (the "stuck note" problem).
+    if (!activeTouchesRef.current.has(touch.pointerId)) return;
     await voiceManager.onTouchStart(touch);
     setTouchVersion((v) => v + 1);
   }, [engine, voiceManager]);
@@ -55,6 +61,7 @@ export default function InstrumentPage() {
   }, [voiceManager]);
 
   const onTouchEnd = useCallback((pointerId: number) => {
+    activeTouchesRef.current.delete(pointerId);
     voiceManager.onTouchEnd(pointerId);
     setTouchVersion((v) => v + 1);
   }, [voiceManager]);
