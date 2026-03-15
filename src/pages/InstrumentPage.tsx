@@ -84,12 +84,14 @@ export default function InstrumentPage() {
   const handleVolumeChange = useCallback((v: number) => {
     setVolume(v);
     engine.setMasterGain(v);
-  }, [engine]);
+    voiceManager.updateAllVoices();
+  }, [engine, voiceManager]);
 
   const handleTimbreChange = useCallback((v: number) => {
     setTimbre(v);
     engine.setMasterTimbre(v);
-  }, [engine]);
+    voiceManager.updateAllVoices();
+  }, [engine, voiceManager]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>

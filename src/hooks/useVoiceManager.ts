@@ -137,9 +137,19 @@ export function useVoiceManager(callbacks: VoiceCallbacks, monoMode: boolean) {
     releaseVoice(pointerId);
   }, [callbacks, monoMode, releaseVoice, updateVoiceParams]);
 
+  const updateAllVoices = useCallback(() => {
+    const touches = callbacks.getTouches();
+    for (const [pointerId, voiceId] of voiceMapRef.current) {
+      const touch = touches.get(pointerId);
+      if (touch) {
+        updateVoiceParams(voiceId, touch);
+      }
+    }
+  }, [callbacks, updateVoiceParams]);
+
   const getActiveVoices = useCallback((): Map<number, number> => {
     return voiceMapRef.current;
   }, []);
 
-  return { onTouchStart, onTouchMove, onTouchEnd, getActiveVoices };
+  return { onTouchStart, onTouchMove, onTouchEnd, updateAllVoices, getActiveVoices };
 }

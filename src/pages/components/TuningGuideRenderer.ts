@@ -81,12 +81,16 @@ export function drawTuningGuides(
       }
 
       // Draw the guide line — brightness scales with glow (0..1)
+      // Color lerps from blue (100,200,255) to gold (255,200,100) as glow → 1
       if (glow > 0) {
+        const r = Math.round(100 + 155 * glow);
+        const g = 200;
+        const b = Math.round(255 - 155 * glow);
         const alpha = 0.12 + 0.48 * glow;
         const blur = 12 * glow;
-        ctx.shadowColor = `rgba(100, 200, 255, ${(0.8 * glow).toFixed(2)})`;
+        ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${(0.8 * glow).toFixed(2)})`;
         ctx.shadowBlur = blur;
-        ctx.strokeStyle = `rgba(100, 200, 255, ${alpha.toFixed(2)})`;
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
         ctx.lineWidth = 1 + 1.5 * glow;
       } else {
         ctx.shadowColor = 'transparent';
@@ -109,9 +113,13 @@ export function drawTuningGuides(
         const p = points[i];
         if (p.x < 0 || p.x > canvasWidth) continue;
         const markerAlpha = glow > 0 ? 0.15 + 0.35 * glow : 0.15;
-        ctx.fillStyle = glow > 0
-          ? `rgba(100, 200, 255, ${markerAlpha.toFixed(2)})`
-          : 'rgba(255, 255, 255, 0.15)';
+        if (glow > 0) {
+          const mr = Math.round(100 + 155 * glow);
+          const mb = Math.round(255 - 155 * glow);
+          ctx.fillStyle = `rgba(${mr}, 200, ${mb}, ${markerAlpha.toFixed(2)})`;
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        }
         ctx.beginPath();
         ctx.arc(p.x, p.y, 3 + 2 * glow, 0, Math.PI * 2);
         ctx.fill();
