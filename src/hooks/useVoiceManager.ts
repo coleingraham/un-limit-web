@@ -7,7 +7,6 @@ interface VoiceCallbacks {
   setGate: (voiceId: number, value: number) => void;
   freeVoice: (voiceId: number) => void;
   getMasterGain: () => number;
-  getMasterTimbre: () => number;
   getTouches: () => Map<number, TouchState>;
 }
 
@@ -22,19 +21,11 @@ export function useVoiceManager(callbacks: VoiceCallbacks, monoMode: boolean) {
   // In mono mode, track a stack of pointerIds per string (most recent last)
   const stringStackRef = useRef<Map<number, number[]>>(new Map()); // stringIndex → [pointerId, ...]
 
-  const computeCutoff = useCallback((freq: number, timbre: number): number => {
-    // Timbre 0.0 = 1 octave above fundamental, 1.0 = 4 octaves above
-    const octaves = 1 + timbre * 3;
-    return freq * Math.pow(2, octaves);
-  }, []);
-
   const updateVoiceParams = useCallback((voiceId: number, touch: TouchState) => {
     const masterGain = callbacks.getMasterGain();
-    const timbre = callbacks.getMasterTimbre();
     callbacks.setParam(voiceId, 'freq', touch.frequency);
     callbacks.setParam(voiceId, 'amp', touch.amplitude * masterGain);
-    callbacks.setParam(voiceId, 'cutoff', computeCutoff(touch.frequency, timbre));
-  }, [callbacks, computeCutoff]);
+  }, [callbacks]);
 
   const releaseVoice = useCallback((pointerId: number) => {
     const voiceId = voiceMapRef.current.get(pointerId);
@@ -85,7 +76,7 @@ export function useVoiceManager(callbacks: VoiceCallbacks, monoMode: boolean) {
     callbacks.setGate(voiceId, 1);
 
     return voiceId;
-  }, [callbacks, computeCutoff, monoMode, updateVoiceParams]);
+  }, [callbacks, monoMode, updateVoiceParams]);
 
   const onTouchMove = useCallback((touch: TouchState) => {
     const voiceId = voiceMapRef.current.get(touch.pointerId);

@@ -23,6 +23,7 @@ async function getOrInitEngine(): Promise<MicrosynthEngine> {
     await sharedEngine!.init();
     await sharedEngine!.registerDef('unlimit', DEFAULT_INSTRUMENT_DEF);
     await sharedEngine!.registerDef('master', DEFAULT_MASTER_EFFECT_DEF);
+    await sharedEngine!.setMasterEffect('master');
   })();
 
   try {
@@ -84,6 +85,10 @@ export function useAudioEngine() {
     masterState.timbre = value;
   }, []);
 
+  const setMasterParam = useCallback((param: string, value: number) => {
+    sharedEngine?.setMasterParam(param, value);
+  }, []);
+
   const getMasterGain = useCallback(() => masterState.gain, []);
   const getMasterTimbre = useCallback(() => masterState.timbre, []);
 
@@ -107,6 +112,7 @@ export function useAudioEngine() {
     setMasterTimbre,
     getMasterGain,
     getMasterTimbre,
+    setMasterParam,
     getAnalyser,
   };
 }

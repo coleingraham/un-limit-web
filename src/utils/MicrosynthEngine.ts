@@ -180,6 +180,25 @@ export class MicrosynthEngine {
     this.send({ type: 'freeVoice', voiceId });
   }
 
+  async setMasterEffect(name: string): Promise<void> {
+    this.send({ type: 'setMasterEffect', name });
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('setMasterEffect timeout')), 5000);
+      const handler = (e: MessageEvent) => {
+        if (e.data.type === 'masterEffectSet') {
+          clearTimeout(timeout);
+          this.workletNode!.port.removeEventListener('message', handler);
+          resolve();
+        }
+      };
+      this.workletNode!.port.addEventListener('message', handler);
+    });
+  }
+
+  setMasterParam(param: string, value: number): void {
+    this.send({ type: 'masterParam', param, value });
+  }
+
   async resume(): Promise<void> {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});

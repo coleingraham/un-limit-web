@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { DEFAULT_INSTRUMENT_DEF, DEFAULT_MASTER_EFFECT_DEF } from '../utils/synthDefs.ts';
 
-const INSTRUMENT_KEY = 'unlimit-synthdef-instrument';
-const MASTER_KEY = 'unlimit-synthdef-master';
+const INSTRUMENT_KEY = 'unlimit-synthdef-instrument-v2';
+const MASTER_KEY = 'unlimit-synthdef-master-v2';
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
