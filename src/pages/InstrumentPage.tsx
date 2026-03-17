@@ -43,6 +43,7 @@ export default function InstrumentPage() {
     setGate: engine.setGate,
     freeVoice: engine.freeVoice,
     getMasterGain: engine.getMasterGain,
+    getMasterTimbre: engine.getMasterTimbre,
     getTouches: () => getTouchesRef.current(),
   }, config.monoMode);
 
@@ -90,7 +91,8 @@ export default function InstrumentPage() {
     setTimbre(v);
     engine.setMasterTimbre(v);
     engine.setMasterParam('drive', 1 + v * 9);
-  }, [engine]);
+    voiceManager.updateAllVoices();
+  }, [engine, voiceManager]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
